@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Редактирование материала</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">Service Desk</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/dashboard">Дашборд</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/requests">Заявки</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/equipment">Оборудование</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link active" href="/materials">Материалы</a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a class="nav-link" href="/users">Пользователи</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/reports">Отчёты</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/dispatcher/notifications">Уведомления</a>
+                </li>
+            </ul>
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-user"></i> <span sec:authentication="name"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/users/profile">Профиль</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="dropdown-item">Выйти</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h3 class="mb-0">Редактирование материала</h3>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/materials/edit/{id}(id=${material.materialId})}"
+                          th:object="${material}" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Наименование материала *</label>
+                            <input type="text" th:field="*{name}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Единица измерения *</label>
+                            <select th:field="*{unit}" class="form-select" required>
+                                <option value="шт">Штуки (шт)</option>
+                                <option value="кг">Килограммы (кг)</option>
+                                <option value="м">Метры (м)</option>
+                                <option value="л">Литры (л)</option>
+                                <option value="компл">Комплекты (компл)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Текущий остаток</label>
+                            <input type="number" th:field="*{quantity}" class="form-control" min="0">
+                            <small class="text-muted">Измените количество, чтобы скорректировать остаток</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <a href="/materials" class="btn btn-secondary">Отмена</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

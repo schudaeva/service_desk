@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пользователи</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">Service Desk</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/dashboard">Дашборд</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/requests">Заявки</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/equipment">Оборудование</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/materials">Материалы</a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a class="nav-link active" href="/users" >Пользователи</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/reports">Отчёты</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/dispatcher/notifications">Уведомления</a>
+                </li>
+            </ul>
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-user"></i> <span sec:authentication="name"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/users/profile">Профиль</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="dropdown-item">Выйти</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Пользователи</h1>
+        <a href="/users/create" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Добавить пользователя
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Логин</th>
+                <th>ФИО</th>
+                <th>Email</th>
+                <th>Телефон</th>
+                <th>Должность</th>
+                <th>Отдел</th>
+                <th>Роли</th>
+                <th>Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${users == null or users.isEmpty()}">
+                <td colspan="9" class="text-center py-4 text-muted">
+                    <i class="fas fa-user-slash fa-2x mb-2 d-block"></i>
+                    Нет пользователей
+                </td>
+            </tr>
+            <tr th:each="u : ${users}">
+                <td th:text="${u.userId}">-</td>
+                <td th:text="${u.username}">-</td>
+                <td th:text="${u.fullName != null ? u.fullName : '-'}">-</td>
+                <td th:text="${u.email}">-</td>
+                <td th:text="${u.phone != null ? u.phone : '-'}">-</td>
+                <td th:text="${u.position != null ? u.position : '-'}">-</td>
+                <td th:text="${u.department != null ? u.department : '-'}">-</td>
+                <td>
+                    <span th:each="r : ${u.roles}" class="badge bg-secondary me-1" th:text="${r}"></span>
+                </td>
+                <td>
+                    <a th:href="@{/users/edit/{id}(id=${u.userId})}" class="btn btn-sm btn-warning" title="Редактировать">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a th:href="@{/users/delete/{id}(id=${u.userId})}" class="btn btn-sm btn-danger"
+                       onclick="return confirm('Удалить пользователя?')" title="Удалить">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

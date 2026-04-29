@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оборудование</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">Service Desk</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/dashboard">Дашборд</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/requests">Заявки</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link active" href="/equipment">Оборудование</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/materials">Материалы</a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a class="nav-link" href="/users">Пользователи</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/reports">Отчёты</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/dispatcher/notifications">Уведомления</a>
+                </li>
+            </ul>
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-user"></i> <span sec:authentication="name"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/users/profile">Профиль</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="dropdown-item">Выйти</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Оборудование</h1>
+        <a href="/equipment/create" class="btn btn-primary"><i class="fas fa-plus me-1"></i> Добавить оборудование</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Наименование</th>
+                <th>Тип</th>
+                <th>Местоположение</th>
+                <th>Дата ввода</th>
+                <th>Периодичность ППР</th>
+                <th>Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="equipment : ${equipmentList}">
+                <td th:text="${equipment.equipmentId}">ID отсутствует</td>
+                <td th:text="${equipment.name}">Наименование отсутствует</td>
+                <td th:text="${equipment.type != null ? equipment.type.name : '-'}">Тип отсутствует</td>
+                <td th:text="${equipment.location}">Местоположение отсутствует</td>
+                <td th:text="${equipment.installDate}">Дата ввода отсутствует</td>
+                <td th:text="${equipment.intervalDays != null ? equipment.intervalDays + ' дней' : '-'}">Периодичность отсутствует</td>
+                <td>
+                    <a th:href="@{/equipment/{id}(id=${equipment.equipmentId})}" class="btn btn-sm btn-primary"  title="Просмотреть">
+                        Открыть
+                    </a>
+                    <a th:href="@{/equipment/edit/{id}(id=${equipment.equipmentId})}" class="btn btn-sm btn-warning" title="Редактировать">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a th:href="@{/equipment/delete/{id}(id=${equipment.equipmentId})}" class="btn btn-sm btn-danger"
+                       onclick="return confirm('Удалить объект?')" title="Удалить">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</html>

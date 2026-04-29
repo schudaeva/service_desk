@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отчёты и аналитика</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">Service Desk</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/dashboard">Дашборд</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/requests">Заявки</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/equipment">Оборудование</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/materials">Материалы</a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a class="nav-link" href="/users">Пользователи</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link active" href="/reports">Отчёты</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/dispatcher/notifications">Уведомления</a>
+                </li>
+            </ul>
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-user"></i> <span sec:authentication="name"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/users/profile">Профиль</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="dropdown-item">Выйти</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Отчёты и аналитика</h1>
+        <a href="/reports/export/excel" class="btn btn-success">
+            <i class="fas fa-file-excel me-1"></i>Экспорт в Excel
+        </a>
+    </div>
+
+    <!-- Общая статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <i class="fas fa-tasks fa-2x mb-2"></i>
+                <h2 th:text="${report.totalRequests}">0</h2>
+                <p>Всего заявок</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                <h2 th:text="${report.completedRequests}">0</h2>
+                <p>Выполнено</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card" style="background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h2 th:text="${report.overdueRequests}">0</h2>
+                <p>Просрочено</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card" style="background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);">
+                <i class="fas fa-spinner fa-2x mb-2"></i>
+                <h2 th:text="${report.inProgressRequests}">0</h2>
+                <p>В работе</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Таблица по статусам вместо круговой диаграммы -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary">
+                    <h5 class="mb-0"><i class="fas fa-chart-simple me-2"></i>Распределение заявок по статусам</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                            <tr><th>Статус</th><th>Количество</th><th>Процент</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="entry : ${report.requestsByStatus}">
+                                <td th:text="${entry.key}">-</td>
+                                <td class="text-center"><strong th:text="${entry.value}">0</strong></td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-primary"
+                                             th:style="'width: ' + (${entry.value} * 100 / (${report.totalRequests} > 0 ? ${report.totalRequests} : 1)) + '%'">
+                                        </div>
+                                    </div>
+                                    <small th:text="${entry.value} * 100 / (${report.totalRequests} > 0 ? ${report.totalRequests} : 1) + '%'"></small>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица по месяцам вместо столбчатой диаграммы -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Заявки по месяцам</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                            <tr><th>Месяц</th><th>Количество</th><th>Процент</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="entry : ${report.requestsByMonth}">
+                                <td th:text="${entry.key}">-</td>
+                                <td class="text-center"><strong th:text="${entry.value}">0</strong></td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success"
+                                             th:style="'width: ' + (${entry.value} * 100 / (${report.totalRequests} > 0 ? ${report.totalRequests} : 1)) + '%'">
+                                        </div>
+                                    </div>
+                                    <small th:text="${entry.value} * 100 / (${report.totalRequests} > 0 ? ${report.totalRequests} : 1) + '%'"></small>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица загрузки исполнителей -->
+    <div class="card shadow">
+        <div class="card-header bg-secondary">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Загрузка исполнителей</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>Исполнитель</th>
+                        <th>Выполнено заявок</th>
+                        <th>Процент от общего числа выполненных</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="entry : ${report.workerLoad}">
+                        <td th:text="${entry.key}">-</td>
+                        <td class="text-center"><strong th:text="${entry.value}">0</strong></td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-info"
+                                     th:style="'width: ' + (${entry.value} * 100 / (${report.completedRequests} > 0 ? ${report.completedRequests} : 1)) + '%'">
+                                </div>
+                            </div>
+                            <small th:text="${entry.value} * 100 / (${report.completedRequests} > 0 ? ${report.completedRequests} : 1) + '%'"></small>
+                        </td>
+                    </tr>
+                    <tr th:if="${report.workerLoad.isEmpty()}">
+                        <td colspan="3" class="text-center">Нет данных об исполнителях</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3 text-muted text-center">
+        <small>Отчёт сгенерирован: <span th:text="${generatedDate}"></span></small>
+    </div>
+    <hr>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Стили для календаря */
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        .stats-card h2 {
+            margin: 0;
+            font-size: 32px;
+        }
+        .calendar-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .calendar-header h3 {
+            margin: 0;
+            color: #333;
+        }
+        .calendar-nav-btn {
+            background: #542279;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .calendar-nav-btn:hover {
+            background: #5a67d8;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+        .calendar-weekday {
+            text-align: center;
+            font-weight: bold;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            color: #555;
+        }
+        .calendar-day {
+            min-height: 100px;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e0e0e0;
+            position: relative;
+        }
+        .calendar-day:hover {
+            background: #f0f0f0;
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .calendar-day-number {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        /* Цвета для разных сроков */
+        .calendar-day.deadline-today {
+            background: #ffebee;
+            border: 2px solid #ef5350;
+        }
+        .calendar-day.deadline-tomorrow {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+        }
+        .calendar-day.deadline-this-week {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+        .calendar-day.deadline-next-week {
+            background: #e3f2fd;
+        }
+        .calendar-day.deadline-passed {
+            background: #f5f5f5;
+            opacity: 0.6;
+        }
+        .calendar-day .deadline-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin: 2px;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .today-indicator {
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        .tooltip-custom {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+<!-- Навигация -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">Service Desk</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" href="/dashboard">Дашборд</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/requests">Заявки</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/equipment">Оборудование</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/materials">Материалы</a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a class="nav-link" href="/users">Пользователи</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/reports">Отчёты</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')" class="nav-item">
+                    <a class="nav-link" href="/dispatcher/notifications">Уведомления</a>
+                </li>
+            </ul>
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-user"></i> <span sec:authentication="name"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/users/profile">Профиль</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="dropdown-item">Выйти</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h1 class="mb-4">Панель управления</h1>
+
+    <!-- Сообщение если нет заявок -->
+    <div th:if="${requests == null or requests.isEmpty()}" class="alert alert-info text-center">
+        <i class="fas fa-info-circle me-2"></i> У вас пока нет заявок
+    </div>
+
+    <div th:if="${requests != null and not requests.isEmpty()}">
+        <!-- Статистика -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <i class="fas fa-tasks fa-2x mb-2"></i>
+                    <h2 th:text="${#lists.size(requests)}">0</h2>
+                    <p>Всего заявок</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h2 th:text="${#lists.size(requests.?[statusName != 'Выполнена' and statusName != 'Отменена'])}">0</h2>
+                    <p>В работе</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h2 th:text="${#lists.size(requests.?[statusName == 'Выполнена'])}">0</h2>
+                    <p>Выполнено</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Календарь дедлайнов -->
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <button class="calendar-nav-btn" id="prevMonthBtn">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <h3 id="currentMonthYear"></h3>
+                <button class="calendar-nav-btn" id="nextMonthBtn">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    // Безопасное получение данных из модели
+    var requests = [];
+
+    /*[# th:if="${requests != null}"]*/
+    requests = /*[[${requests}]]*/ [];
+    /*[/]*/
+
+    // Проверка и преобразование
+    if (!Array.isArray(requests)) {
+        requests = [];
+    }
+
+    console.log("Загружено заявок:", requests.length);
+
+    // ========== КАЛЕНДАРЬ ==========
+    let currentDate = new Date();
+
+    // Дни недели
+    const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+    // Получение цвета для ячейки на основе дедлайнов
+    function getDayColorClass(requestsForDay) {
+        if (!requestsForDay || requestsForDay.length === 0) return '';
+
+        let today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Проверяем, есть ли просроченные
+        let hasOverdue = requestsForDay.some(r => {
+            if (!r.deadline) return false;
+            let deadlineDate = new Date(r.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            return deadlineDate < today;
+        });
+        if (hasOverdue) return 'deadline-passed';
+
+        // Проверяем, есть ли сегодняшние
+        let hasToday = requestsForDay.some(r => {
+            if (!r.deadline) return false;
+            let deadlineDate = new Date(r.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            return deadlineDate.getTime() === today.getTime();
+        });
+        if (hasToday) return 'deadline-today';
+
+        // Проверяем, есть ли завтрашние
+        let tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        let hasTomorrow = requestsForDay.some(r => {
+            if (!r.deadline) return false;
+            let deadlineDate = new Date(r.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            return deadlineDate.getTime() === tomorrow.getTime();
+        });
+        if (hasTomorrow) return 'deadline-tomorrow';
+
+        // Проверяем, есть ли на этой неделе
+        let endOfWeek = new Date(today);
+        endOfWeek.setDate(today.getDate() + (6 - today.getDay()));
+        let hasThisWeek = requestsForDay.some(r => {
+            if (!r.deadline) return false;
+            let deadlineDate = new Date(r.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            return deadlineDate > tomorrow && deadlineDate <= endOfWeek;
+        });
+        if (hasThisWeek) return 'deadline-this-week';
+
+        return 'deadline-next-week';
+    }
+
+    // Форматирование даты для отображения
+    function formatDate(date) {
+        let d = new Date(date);
+        return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    // Построение календаря
+    function buildCalendar() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        // Заголовок
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        document.getElementById('currentMonthYear').innerText = `${monthNames[month]} ${year}`;
+
+        // Первый день месяца
+        const firstDayOfMonth = new Date(year, month, 1);
+        const startDayOfWeek = firstDayOfMonth.getDay();
+        let startOffset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+        // Последний день месяца
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const daysInMonth = lastDayOfMonth.getDate();
+
+        let gridHtml = '';
+
+        // Заголовки дней недели
+        weekdays.forEach(day => {
+            gridHtml += `<div class="calendar-weekday">${day}</div>`;
+        });
+
+        // Пустые ячейки до начала месяца
+        for (let i = 0; i < startOffset; i++) {
+            gridHtml += `<div class="calendar-day"></div>`;
+        }
+
+        // Ячейки дней месяца
+        for (let day = 1; day <= daysInMonth; day++) {
+            let currentDateObj = new Date(year, month, day);
+            let isToday = false;
+            let today = new Date();
+            if (currentDateObj.toDateString() === today.toDateString()) {
+                isToday = true;
+            }
+
+            // Получаем заявки с дедлайном в этот день
+            let requestsForDay = [];
+            requests.forEach(request => {
+                if (request.deadline) {
+                    let deadlineDate = new Date(request.deadline);
+                    if (deadlineDate.getFullYear() === year &&
+                        deadlineDate.getMonth() === month &&
+                        deadlineDate.getDate() === day) {
+                        requestsForDay.push(request);
+                    }
+                }
+            });
+
+            let colorClass = getDayColorClass(requestsForDay);
+            let todayIndicator = isToday ? '<span class="today-indicator ms-1">★</span>' : '';
+
+            gridHtml += `
+                    <div class="calendar-day ${colorClass}" data-date="${year}-${month + 1}-${day}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="calendar-day-number">${day}</span>
+                            ${todayIndicator}
+                        </div>
+                `;
+
+            // Показываем заявки
+            if (requestsForDay.length > 0) {
+                let displayCount = Math.min(requestsForDay.length, 3);
+                for (let i = 0; i < displayCount; i++) {
+                    let r = requestsForDay[i];
+                    let priorityClass = '';
+                    if (r.priority === 'CRITICAL') priorityClass = 'bg-danger';
+                    else if (r.priority === 'HIGH') priorityClass = 'bg-warning text-dark';
+                    else if (r.priority === 'MEDIUM') priorityClass = 'bg-info';
+                    else priorityClass = 'bg-secondary';
+
+                    gridHtml += `
+                            <div class="deadline-badge ${priorityClass}"
+                                 data-request-id="${r.requestId}"
+                                 data-title="${r.title.replace(/'/g, "\\'")}"
+                                 data-status="${r.statusName}"
+                                 data-deadline="${r.deadline}">
+                                №${r.requestId}
+                            </div>
+                        `;
+                }
+                if (requestsForDay.length > 3) {
+                    gridHtml += `<div class="text-muted small mt-1">+${requestsForDay.length - 3} ещё...</div>`;
+                }
+            }
+
+            gridHtml += `</div>`;
+        }
+
+        // Заполнение оставшихся ячеек
+        const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+        const remainingCells = totalCells - (startOffset + daysInMonth);
+        for (let i = 0; i < remainingCells; i++) {
+            gridHtml += `<div class="calendar-day"></div>`;
+        }
+
+        document.getElementById('calendarGrid').innerHTML = gridHtml;
+
+        // Добавляем обработчики для отображения тултипов
+        document.querySelectorAll('.deadline-badge').forEach(badge => {
+            badge.addEventListener('mouseenter', function(e) {
+                let requestId = this.getAttribute('data-request-id');
+                let title = this.getAttribute('data-title');
+                let status = this.getAttribute('data-status');
+                let deadline = this.getAttribute('data-deadline');
+
+                let tooltip = document.createElement('div');
+                tooltip.className = 'tooltip-custom';
+                let formattedDeadline = deadline ? new Date(deadline).toLocaleString('ru-RU') : 'Не указан';
+                tooltip.innerHTML = `<strong>Заявка №${requestId}</strong><br>${title}<br>Статус: ${status}<br>Дедлайн: ${formattedDeadline}`;
+                tooltip.style.left = (e.pageX + 10) + 'px';
+                tooltip.style.top = (e.pageY - 30) + 'px';
+                document.body.appendChild(tooltip);
+
+                badge.addEventListener('mouseleave', function() {
+                    tooltip.remove();
+                }, { once: true });
+            });
+        });
+
+        // Добавляем обработчик клика по ячейке
+        document.querySelectorAll('.calendar-day').forEach(day => {
+            day.addEventListener('click', function() {
+                let dateAttr = this.getAttribute('data-date');
+                if (dateAttr) {
+                    let filteredRequests = requests.filter(r => {
+                        if (!r.deadline) return false;
+                        let deadlineDate = new Date(r.deadline);
+                        let targetDate = new Date(dateAttr);
+                        return deadlineDate.toDateString() === targetDate.toDateString();
+                    });
+                    if (filteredRequests.length > 0) {
+                        let modalHtml = `
+                                <div class="modal fade" id="requestsModal" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-primary text-white">
+                                                <h5 class="modal-title">Заявки на ${formatDate(dateAttr)}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="list-group">
+                                            `;
+
+                        filteredRequests.forEach(r => {
+                            let priorityBadge = '';
+                            if (r.priority === 'CRITICAL') priorityBadge = '<span class="badge bg-danger">Критичный</span>';
+                            else if (r.priority === 'HIGH') priorityBadge = '<span class="badge bg-warning text-dark">Высокий</span>';
+                            else if (r.priority === 'MEDIUM') priorityBadge = '<span class="badge bg-info">Средний</span>';
+                            else priorityBadge = '<span class="badge bg-secondary">Низкий</span>';
+
+                            modalHtml += `
+                                    <a href="/requests/${r.requestId}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <strong>№${r.requestId} - ${r.title}</strong>
+                                            ${priorityBadge}
+                                        </div>
+                                        <small class="text-muted">Статус: ${r.statusName}</small>
+                                    </a>
+                                `;
+                        });
+
+                        modalHtml += `
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                        let existingModal = document.getElementById('requestsModal');
+                        if (existingModal) existingModal.remove();
+
+                        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                        let modal = new bootstrap.Modal(document.getElementById('requestsModal'));
+                        modal.show();
+
+                        document.getElementById('requestsModal').addEventListener('hidden.bs.modal', function() {
+                            this.remove();
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    // Навигация по месяцам
+    document.getElementById('prevMonthBtn').addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        buildCalendar();
+    });
+
+    document.getElementById('nextMonthBtn').addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        buildCalendar();
+    });
+
+    // Инициализация календаря
+    if (requests.length > 0) {
+        buildCalendar();
+    }
+    /*]]>*/
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://kit.fontawesome.com/your-code.js" crossorigin="anonymous"></script>
+</body>
+</html>
