@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Добавление статуса</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Добавление статуса заявки</h3>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/admin/dictionaries/statuses/create}" th:object="${status}" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Название</label>
+                            <input type="text" th:field="*{name}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Кодовое обозначение</label>
+                            <input type="text" th:field="*{code}" class="form-control" required>
+                            <small class="text-muted">Например: WAITING_MATERIALS, ON_HOLD</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Цвет</label>
+                            <input type="color" th:field="*{color}" class="form-control" style="height: 50px;">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" th:field="*{isFinal}" class="form-check-input">
+                            <label class="form-check-label">Конечный статус (заявка завершена)</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Порядок сортировки</label>
+                            <input type="number" th:field="*{sortOrder}" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-success">Сохранить</button>
+                        <a href="/admin/dictionaries" class="btn btn-secondary">Отмена</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

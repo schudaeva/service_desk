@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Добавление типа заявки</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Добавление типа заявки</h3>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/admin/dictionaries/request-types/create}" th:object="${requestType}" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Наименование</label>
+                            <input type="text" th:field="*{name}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Кодовое обозначение</label>
+                            <input type="text" th:field="*{code}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Приоритет по умолчанию</label>
+                            <select th:field="*{defaultPriority}" class="form-select">
+                                <option value="LOW">Низкий</option>
+                                <option value="MEDIUM">Средний</option>
+                                <option value="HIGH">Высокий</option>
+                                <option value="CRITICAL">Критичный</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Нормативный срок (часы)</label>
+                            <input type="number" th:field="*{defaultHours}" class="form-control" min="0">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" th:field="*{isActive}" class="form-check-input">
+                            <label class="form-check-label">Активен</label>
+                        </div>
+                        <button type="submit" class="btn btn-success">Сохранить</button>
+                        <a href="/admin/dictionaries" class="btn btn-secondary">Отмена</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

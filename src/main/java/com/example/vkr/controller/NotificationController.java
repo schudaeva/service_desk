@@ -3,6 +3,7 @@ package com.example.vkr.controller;
 import com.example.vkr.dto.RequestCreateDto;
 import com.example.vkr.entity.*;
 import com.example.vkr.repository.*;
+import com.example.vkr.service.MaintenanceScheduler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,10 +24,9 @@ public class NotificationController {
     private final RequestRepository requestRepository;
     private final RequestStatusRepository requestStatusRepository;
     private final UserRepository userRepository;
+    private final MaintenanceScheduler maintenanceScheduler;
 
-    /**
-     * Страница со списком уведомлений
-     */
+
     @GetMapping("/notifications")
     public String showNotifications(Model model) {
         List<MaintenanceNotification> pendingNotifications = notificationRepository
@@ -36,9 +36,12 @@ public class NotificationController {
         return "dispatcher/notifications";
     }
 
-    /**
-     * Создание заявки из уведомления
-     */
+    @PostMapping("/run-scheduler")
+    public String runSchedulerManually() {
+        maintenanceScheduler.runMaintenanceCheck();
+        return "redirect:/dispatcher/notifications?manual=true";
+    }
+
     @GetMapping("/notifications/create-request/{id}")
     public String createRequestFromNotification(@PathVariable Long id, Model model) {
         MaintenanceNotification notification = notificationRepository.findById(id)
@@ -62,9 +65,7 @@ public class NotificationController {
         return "dispatcher/create-request-from-notification";
     }
 
-    /**
-     * Сохранение заявки из уведомления
-     */
+
     @PostMapping("/notifications/create-request/{id}")
     public String saveRequestFromNotification(@PathVariable Long id,
                                               @ModelAttribute RequestCreateDto dto,
@@ -76,7 +77,7 @@ public class NotificationController {
         MaintenanceNotification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Уведомление не найдено"));
 
-        // Создаём заявку
+
         Request request = new Request();
         request.setTitle(dto.getTitle());
         request.setDescription(dto.getDescription());
@@ -106,7 +107,6 @@ public class NotificationController {
 
         Request savedRequest = requestRepository.save(request);
 
-        // Обновляем уведомление
         notification.setStatus("PROCESSED");
         notification.setProcessedAt(LocalDateTime.now());
         notification.setRequest(savedRequest);

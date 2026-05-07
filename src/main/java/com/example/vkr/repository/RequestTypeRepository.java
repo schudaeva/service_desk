@@ -1,11 +1,11 @@
 package com.example.vkr.repository;
 
-import com.example.vkr.entity.EquipmentType;
+import com.example.vkr.entity.RequestType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface EquipmentTypeRepository extends JpaRepository<EquipmentType, Integer> {
-    List<EquipmentType> findByIsActiveTrue();
+public interface RequestTypeRepository extends JpaRepository<RequestType, Integer> {
+    List<RequestType> findByIsActiveTrue();
 }

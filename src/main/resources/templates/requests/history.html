@@ -34,6 +34,9 @@
                 <li sec:authorize="hasRole('ADMIN')" class="nav-item">
                     <a class="nav-link" href="/users">Пользователи</a>
                 </li>
+                <li sec:authorize="hasRole('ADMIN')">
+                    <a class="nav-link" href="/admin/dictionaries">Справочники</a>
+                </li>
                 <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
                     <a class="nav-link" href="/reports">Отчёты</a>
                 </li>

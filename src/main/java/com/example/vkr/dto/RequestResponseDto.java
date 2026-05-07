@@ -19,6 +19,7 @@ public class RequestResponseDto {
     private String source;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Double totalHours;
 
     private String rowCssClass;
 }

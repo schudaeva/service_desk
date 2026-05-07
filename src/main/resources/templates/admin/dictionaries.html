@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление справочниками</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">Service Desk</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" href="/dashboard">Дашборд</a></li>
+                <li class="nav-item"><a class="nav-link" href="/requests">Заявки</a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/equipment">Оборудование</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/materials">Материалы</a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')">
+                    <a class="nav-link" href="/users">Пользователи</a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')">
+                    <a class="nav-link active" href="/admin/dictionaries">Справочники</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/reports">Отчёты</a>
+                </li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
+                    <a class="nav-link" href="/dispatcher/notifications">Уведомления</a>
+                </li>
+            </ul>
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-user"></i> <span sec:authentication="name"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/users/profile">Профиль</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="dropdown-item">Выйти</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h1><i class="fas fa-database me-2"></i>Управление справочниками</h1>
+    <p class="lead">Управление статусами заявок, переходами, типами оборудования и типами заявок</p>
+
+    <ul class="nav nav-tabs mb-3" id="dictionaryTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="statuses-tab" data-bs-toggle="tab" data-bs-target="#statuses" type="button" role="tab">Статусы заявок</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="transitions-tab" data-bs-toggle="tab" data-bs-target="#transitions" type="button" role="tab">Правила переходов</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="equipment-types-tab" data-bs-toggle="tab" data-bs-target="#equipmentTypes" type="button" role="tab">Типы оборудования</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="request-types-tab" data-bs-toggle="tab" data-bs-target="#requestTypes" type="button" role="tab">Типы заявок</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Вкладка: Статусы заявок -->
+        <div class="tab-pane fade show active" id="statuses" role="tabpanel">
+            <div class="d-flex justify-content-between mb-3">
+                <h3>Статусы заявок</h3>
+                <a href="/admin/dictionaries/statuses/create" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Добавить статус
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>ID</th><th>Название</th><th>Код</th><th>Цвет</th><th>Конечный</th><th>Сортировка</th><th>Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="s : ${statuses}">
+                        <td th:text="${s.statusId}">-</td>
+                        <td th:text="${s.name}">-</td>
+                        <td><code th:text="${s.code}">-</code></td>
+                        <td>
+                            <span class="badge" th:style="'background-color: ' + ${s.color} + ';'" th:text="${s.name}"></span>
+                        </td>
+                        <td><i th:if="${s.isFinal}" class="fas fa-check-circle text-success"></i><i th:unless="${s.isFinal}" class="fas fa-times-circle text-danger"></i></td>
+                        <td th:text="${s.sortOrder}">-</td>
+                        <td>
+                            <a th:href="@{/admin/dictionaries/statuses/edit/{id}(id=${s.statusId})}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+                            <a th:href="@{/admin/dictionaries/statuses/delete/{id}(id=${s.statusId})}" class="btn btn-sm btn-danger" onclick="return confirm('Деактивировать статус?')"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Вкладка: Правила переходов -->
+        <div class="tab-pane fade" id="transitions" role="tabpanel">
+            <div class="d-flex justify-content-between mb-3">
+                <h3>Разрешённые переходы между статусами</h3>
+                <a href="/admin/dictionaries/transitions/create" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Добавить правило
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                    <tr><th>ID</th><th>Исходный статус</th><th>→</th><th>Целевой статус</th><th>Роль</th><th>Действия</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="t : ${transitions}">
+                        <td th:text="${t.id}">-</td>
+                        <td th:text="${t.fromStatus.name}">-</td>
+                        <td><i class="fas fa-arrow-right"></i></td>
+                        <td th:text="${t.toStatus.name}">-</td>
+                        <td><span class="badge bg-secondary" th:text="${t.roleId}">-</span></td>
+                        <td>
+                            <a th:href="@{/admin/dictionaries/transitions/delete/{id}(id=${t.id})}" class="btn btn-sm btn-danger" onclick="return confirm('Удалить правило?')"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                    <tr th:if="${transitions.isEmpty()}">
+                        <td colspan="6" class="text-center">Нет правил переходов</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Вкладка: Типы оборудования -->
+        <div class="tab-pane fade" id="equipmentTypes" role="tabpanel">
+            <div class="d-flex justify-content-between mb-3">
+                <h3>Типы оборудования</h3>
+                <a href="/admin/dictionaries/equipment-types/create" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Добавить тип
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                    <tr><th>ID</th><th>Наименование</th><th>Описание</th><th>Действия</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="et : ${equipmentTypes}">
+                        <td th:text="${et.typeId}">-</td>
+                        <td th:text="${et.name}">-</td>
+                        <td th:text="${et.description}">-</td>
+                        <td>
+                            <a th:href="@{/admin/dictionaries/equipment-types/edit/{id}(id=${et.typeId})}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+                            <a th:href="@{/admin/dictionaries/equipment-types/delete/{id}(id=${et.typeId})}" class="btn btn-sm btn-danger" onclick="return confirm('Деактивировать тип?')"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                    <tr th:if="${equipmentTypes.isEmpty()}">
+                        <td colspan="4" class="text-center">Нет типов оборудования</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Вкладка: Типы заявок -->
+        <div class="tab-pane fade" id="requestTypes" role="tabpanel">
+            <div class="d-flex justify-content-between mb-3">
+                <h3>Типы заявок</h3>
+                <a href="/admin/dictionaries/request-types/create" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Добавить тип
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                    <tr><th>ID</th><th>Наименование</th><th>Код</th><th>Приоритет по умолчанию</th><th>Часы по умолчанию</th><th>Активен</th><th>Действия</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="rt : ${requestTypes}">
+                        <td th:text="${rt.typeId}">-</td>
+                        <td th:text="${rt.name}">-</td>
+                        <td><code th:text="${rt.code}">-</code></td>
+                        <td th:text="${rt.defaultPriority}">-</td>
+                        <td th:text="${rt.defaultHours}">-</td>
+                        <td><i th:if="${rt.isActive}" class="fas fa-check-circle text-success"></i><i th:unless="${rt.isActive}" class="fas fa-times-circle text-danger"></i></td>
+                        <td>
+                            <a th:href="@{/admin/dictionaries/request-types/edit/{id}(id=${rt.typeId})}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+                            <a th:href="@{/admin/dictionaries/request-types/delete/{id}(id=${rt.typeId})}" class="btn btn-sm btn-danger" onclick="return confirm('Деактивировать тип?')"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                    <tr th:if="${requestTypes.isEmpty()}">
+                        <td colspan="7" class="text-center">Нет типов заявок</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

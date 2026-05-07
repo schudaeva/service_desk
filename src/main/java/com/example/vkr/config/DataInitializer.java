@@ -25,13 +25,11 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Создание ролей, если их нет
         createRoleIfNotFound("ADMIN");
         createRoleIfNotFound("DISPATCHER");
         createRoleIfNotFound("WORKER");
         createRoleIfNotFound("REQUESTER");
 
-        // Создание тестового администратора, если его нет
         if (userRepository.findByUsername("admin").isEmpty()) {
             User admin = new User();
             admin.setUsername("admin");
@@ -47,7 +45,6 @@ public class DataInitializer implements CommandLineRunner {
             System.out.println("Тестовый администратор создан: admin / admin");
         }
 
-        // Создание тестового диспетчера
         if (userRepository.findByUsername("dispatcher").isEmpty()) {
             User dispatcher = new User();
             dispatcher.setUsername("dispatcher");
@@ -62,7 +59,6 @@ public class DataInitializer implements CommandLineRunner {
             System.out.println("Тестовый диспетчер создан: dispatcher / dispatcher");
         }
 
-        // Создание тестового исполнителя
         if (userRepository.findByUsername("worker").isEmpty()) {
             User worker = new User();
             worker.setUsername("worker");
@@ -76,8 +72,7 @@ public class DataInitializer implements CommandLineRunner {
             userRepository.save(worker);
             System.out.println("Тестовый исполнитель создан: worker / worker");
         }
-
-        // Создание тестового заявителя
+        
         if (userRepository.findByUsername("requester").isEmpty()) {
             User requester = new User();
             requester.setUsername("requester");

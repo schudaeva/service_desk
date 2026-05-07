@@ -1,5 +1,4 @@
 package com.example.vkr.controller;
-import com.example.vkr.dto.RequestFilterDto;
 import com.example.vkr.dto.RequestCreateDto;
 import com.example.vkr.dto.RequestResponseDto;
 import com.example.vkr.entity.*;
@@ -33,6 +32,8 @@ public class RequestController {
     private final StatusHistoryRepository statusHistoryRepository;
     private final RequestMaterialRepository requestMaterialRepository;
     private final MaterialTransactionRepository materialTransactionRepository;
+    private final RequestWorkRepository requestWorkRepository;
+    private final RequestMaterialActualRepository requestMaterialActualRepository;
 
     @GetMapping
     public String listRequests(Model model,
@@ -45,12 +46,12 @@ public class RequestController {
                                @RequestParam(required = false) LocalDateTime deadlineFrom,
                                @RequestParam(required = false) LocalDateTime deadlineTo,
                                @RequestParam(defaultValue = "requestId") String sortField,
-                               @RequestParam(defaultValue = "desc") String sortDir) {
+                               @RequestParam(defaultValue = "desc") String sortDir,
+                               @RequestParam(required = false) String filter) {
 
         User currentUser = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // 1. Получаем базовый список в зависимости от роли
         List<Request> baseRequests;
         boolean isDispatcher = currentUser.getRoles().stream()
                 .anyMatch(r -> r.getName().equals("DISPATCHER") || r.getName().equals("ADMIN"));
@@ -68,7 +69,6 @@ public class RequestController {
             System.out.println("Заявитель " + currentUser.getUsername() + ": показано " + baseRequests.size() + " заявок");
         }
 
-        // 2. Применяем фильтры
         List<Request> filtered = baseRequests;
 
         if (search != null && !search.isBlank()) {
@@ -120,7 +120,18 @@ public class RequestController {
                     .collect(Collectors.toList());
         }
 
-        // 3. Сортируем
+        if ("overdue".equals(filter)) {
+            filtered = filtered.stream()
+                    .filter(r -> r.getDeadline() != null
+                            && r.getDeadline().isBefore(LocalDateTime.now())
+                            && r.getStatus() != null
+                            && !"COMPLETED".equals(r.getStatus().getCode())
+                            && !"CANCELLED".equals(r.getStatus().getCode()))
+                    .collect(Collectors.toList());
+            model.addAttribute("filterApplied", "Показаны только просроченные заявки");
+        }
+
+
         Comparator<Request> comparator;
         if ("deadline".equals(sortField)) {
             comparator = Comparator.comparing(Request::getDeadline, Comparator.nullsLast(Comparator.naturalOrder()));
@@ -132,20 +143,16 @@ public class RequestController {
         }
         filtered.sort(comparator);
 
-        // 4. Преобразуем в DTO
         List<RequestResponseDto> responseDtos = filtered.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
 
-        // 5. Данные для модели
         model.addAttribute("requests", responseDtos);
         model.addAttribute("equipmentList", equipmentRepository.findAll());
         model.addAttribute("statuses", requestStatusRepository.findAll());
         model.addAttribute("workers", userRepository.findAll().stream()
                 .filter(u -> u.getRoles().stream().anyMatch(r -> r.getName().equals("WORKER")))
                 .collect(Collectors.toList()));
-
-        // Сохраняем параметры фильтра для формы
         model.addAttribute("search", search);
         model.addAttribute("selectedEquipmentId", equipmentId);
         model.addAttribute("selectedStatusCode", statusCode);
@@ -159,7 +166,6 @@ public class RequestController {
         return "requests/list";
     }
 
-    // ========== ФИЛЬТРЫ ==========
 
     private boolean applySearchFilter(Request request, String search) {
         if (search == null || search.isBlank()) return true;
@@ -187,7 +193,6 @@ public class RequestController {
         return true;
     }
 
-    // ========== СОРТИРОВКА ==========
 
     private List<Request> applySorting(List<Request> requests, String sortField, String sortDir) {
         if (sortField == null) sortField = "requestId";
@@ -213,7 +218,6 @@ public class RequestController {
     }
 
 
-    // ========== ФОРМА СОЗДАНИЯ ==========
     @GetMapping("/create")
     public String showCreateForm(Model model) {
         model.addAttribute("requestCreateDto", new RequestCreateDto());
@@ -225,7 +229,7 @@ public class RequestController {
         return "requests/create";
     }
 
-    // ========== СОХРАНЕНИЕ НОВОЙ ЗАЯВКИ ==========
+
     @PostMapping("/create")
     public String createRequest(@ModelAttribute RequestCreateDto createDto,
                                 @AuthenticationPrincipal UserDetails userDetails) {
@@ -263,7 +267,7 @@ public class RequestController {
 
         Request savedRequest = requestRepository.save(request);
 
-        // Сохраняем материалы
+
         if (createDto.getMaterialIds() != null && createDto.getPlannedQuantities() != null) {
             int size = Math.min(createDto.getMaterialIds().size(), createDto.getPlannedQuantities().size());
             for (int i = 0; i < size; i++) {
@@ -283,7 +287,7 @@ public class RequestController {
             }
         }
 
-        // Запись в историю
+
         StatusHistory history = new StatusHistory();
         history.setRequest(savedRequest);
         history.setStatus(savedRequest.getStatus());
@@ -303,15 +307,23 @@ public class RequestController {
         User currentUser = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
 
-        // Получаем комментарии
+
         List<Comment> comments = commentRepository.findByRequestOrderByCreatedAtAsc(request);
+        // Выполненные работы
+        List<RequestWork> works = requestWorkRepository.findByRequestOrderByCreatedAtAsc(request);
+        Double totalHours = works.stream().mapToDouble(RequestWork::getHoursSpent).sum();
+
         List<RequestMaterial> requestMaterials = requestMaterialRepository.findByRequest(request);
         model.addAttribute("requestMaterials", requestMaterials);
+        List<RequestMaterialActual> actualMaterials = requestMaterialActualRepository.findByRequest(request);
+        model.addAttribute("actualMaterials", actualMaterials);
+        model.addAttribute("materials", materialRepository.findAll());  // для выпадающего списка
 
-        // Преобразуем в DTO
+
         RequestResponseDto requestDto = convertToDto(request);
+        requestDto.setTotalHours(totalHours);
 
-        // Доступные переходы для смены статуса
+
         String userRole = currentUser.getRoles().stream()
                 .map(Role::getName)
                 .findFirst()
@@ -324,17 +336,30 @@ public class RequestController {
         model.addAttribute("request", requestDto);
         model.addAttribute("comments", comments);
         model.addAttribute("availableTransitions", availableTransitions);
+        model.addAttribute("works", works);
+        model.addAttribute("totalHours", totalHours);
 
         return "requests/detail";
     }
 
-    // ========== РЕДАКТИРОВАНИЕ ==========
+
     @GetMapping("/edit/{id}")
-    public String showEditForm(@PathVariable Integer id, Model model) {
+    public String showEditForm(@PathVariable Integer id, Model model,
+                               @AuthenticationPrincipal UserDetails userDetails) {
+
+        User currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean canEdit = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN") || r.getName().equals("DISPATCHER"));
+
+        if (!canEdit) {
+            return "redirect:/requests?accessDenied";
+        }
+
         Request request = requestRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Request not found"));
 
-        // Получаем привязанные материалы
         List<RequestMaterial> requestMaterials = requestMaterialRepository.findByRequest(request);
 
         RequestCreateDto createDto = new RequestCreateDto();
@@ -343,6 +368,11 @@ public class RequestController {
         createDto.setPriority(request.getPriority());
         createDto.setDeadline(request.getDeadline());
 
+
+        if (request.getDeadline() != null) {
+            createDto.setFormattedDeadline(request.getDeadline().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")));
+        }
+
         if (request.getEquipment() != null) {
             createDto.setEquipmentId(request.getEquipment().getEquipmentId());
         }
@@ -350,7 +380,6 @@ public class RequestController {
             createDto.setAssignedToId(request.getAssignedTo().getUserId());
         }
 
-        // Заполняем списки материалов
         List<Integer> materialIds = new ArrayList<>();
         List<Integer> plannedQuantities = new ArrayList<>();
         for (RequestMaterial rm : requestMaterials) {
@@ -372,6 +401,7 @@ public class RequestController {
     }
 
 
+
     @PostMapping("/edit/{id}")
     @Transactional
     public String updateRequest(@PathVariable Integer id,
@@ -384,18 +414,15 @@ public class RequestController {
         User currentUser = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Сохраняем старого исполнителя
         Integer oldAssigneeId = request.getAssignedTo() != null
                 ? request.getAssignedTo().getUserId()
                 : null;
 
-        // Обновляем основные поля
         request.setTitle(createDto.getTitle());
         request.setDescription(createDto.getDescription());
         request.setPriority(createDto.getPriority());
         request.setDeadline(createDto.getDeadline());
 
-        // Обновляем оборудование
         if (createDto.getEquipmentId() != null) {
             Equipment equipment = equipmentRepository.findById(createDto.getEquipmentId())
                     .orElseThrow(() -> new RuntimeException("Equipment not found"));
@@ -404,7 +431,6 @@ public class RequestController {
             request.setEquipment(null);
         }
 
-        // Обновляем исполнителя
         Integer newAssigneeId = createDto.getAssignedToId();
         boolean wasUnassigned = (oldAssigneeId == null);
         boolean isNowAssigned = (newAssigneeId != null);
@@ -417,7 +443,6 @@ public class RequestController {
             request.setAssignedTo(null);
         }
 
-        // АВТОМАТИЧЕСКАЯ СМЕНА СТАТУСА
         boolean statusIsNew = request.getStatus().getCode().equals("NEW");
 
         if (wasUnassigned && isNowAssigned && statusIsNew) {
@@ -425,7 +450,7 @@ public class RequestController {
                     .orElseThrow(() -> new RuntimeException("Status ASSIGNED not found"));
             request.setStatus(assignedStatus);
 
-            // Запись в историю
+
             StatusHistory history = new StatusHistory();
             history.setRequest(request);
             history.setStatus(assignedStatus);
@@ -439,7 +464,6 @@ public class RequestController {
         request.setUpdatedAt(LocalDateTime.now());
         requestRepository.save(request);
 
-        // Обновляем материалы: удаляем старые, добавляем новые
         requestMaterialRepository.deleteByRequest(request);
 
         if (createDto.getMaterialIds() != null && createDto.getPlannedQuantities() != null) {
@@ -464,7 +488,6 @@ public class RequestController {
         return "redirect:/requests/" + id;
     }
 
-    // ========== ВСПОМОГАТЕЛЬНЫЙ МЕТОД ==========
     private RequestResponseDto convertToDto(Request request) {
         RequestResponseDto dto = new RequestResponseDto();
         dto.setRequestId(request.getRequestId());
@@ -475,35 +498,30 @@ public class RequestController {
         dto.setSource(request.getSource());
         dto.setCreatedAt(request.getCreatedAt());
         dto.setUpdatedAt(request.getUpdatedAt());
-        // Статус
         if (request.getStatus() != null) {
             dto.setStatusName(request.getStatus().getName());
             dto.setStatusColor(request.getStatus().getColor());
         }
 
-        // Оборудование
         if (request.getEquipment() != null) {
             dto.setEquipmentName(request.getEquipment().getName());
             dto.setEquipmentId(request.getEquipment().getEquipmentId());
         }
 
-        // Создатель
         if (request.getCreatedBy() != null) {
             dto.setCreatedByUsername(request.getCreatedBy().getUsername());
         }
 
-        // Исполнитель
         if (request.getAssignedTo() != null) {
             dto.setAssignedToUsername(request.getAssignedTo().getUsername());
         }
 
-        // Определяем CSS-класс для строки таблицы
         LocalDateTime now = LocalDateTime.now();
         if (request.getDeadline() != null) {
             if (request.getDeadline().isBefore(now)) {
-                dto.setRowCssClass("overdue-row");      // просрочена
+                dto.setRowCssClass("overdue-row");
             } else if (request.getDeadline().isBefore(now.plusHours(24))) {
-                dto.setRowCssClass("warning-row");      // истекает через 24 часа
+                dto.setRowCssClass("warning-row");
             }
         }
         System.out.println("Request " + request.getRequestId() + " deadline: " + request.getDeadline());
@@ -514,7 +532,6 @@ public class RequestController {
 
 
 
-    // ========== УДАЛЕНИЕ ==========
     @GetMapping("/delete/{id}")
     public String deleteRequest(@PathVariable Integer id,
                                 @AuthenticationPrincipal UserDetails userDetails) {
@@ -533,7 +550,7 @@ public class RequestController {
         return "redirect:/requests";
     }
 
-    // ========== ИЗМЕНЕНИЕ СТАТУСА ==========
+
     @PostMapping("/{id}/status")
     public String changeStatus(@PathVariable Integer id,
                                @RequestParam String statusCode,
@@ -551,7 +568,7 @@ public class RequestController {
                 .findFirst()
                 .orElse("");
 
-        // Администратор может всё
+
         boolean canChange = userRole.equals("ADMIN") ||
                 statusTransitionRepository.existsByFromStatusCodeAndToStatusCodeAndRoleId(
                         currentStatusCode, statusCode, userRole);
@@ -567,7 +584,6 @@ public class RequestController {
         request.setUpdatedAt(LocalDateTime.now());
         requestRepository.save(request);
 
-        // Запись в историю
         StatusHistory history = new StatusHistory();
         history.setRequest(request);
         history.setStatus(newStatus);
@@ -651,7 +667,7 @@ public class RequestController {
             }
         }
 
-        // Списываем материалы
+
         for (int i = 0; i < requestMaterials.size(); i++) {
             RequestMaterial rm = requestMaterials.get(i);
             Integer actualQty = (actualQuantities != null && i < actualQuantities.size())
@@ -665,13 +681,12 @@ public class RequestController {
             requestMaterialRepository.save(rm);
         }
 
-        // Меняем статус на COMPLETED
+
         RequestStatus completedStatus = requestStatusRepository.findByCode("COMPLETED")
                 .orElseThrow(() -> new RuntimeException("Status COMPLETED not found"));
         request.setStatus(completedStatus);
         requestRepository.save(request);
 
-        // Запись в историю
         StatusHistory history = new StatusHistory();
         history.setRequest(request);
         history.setStatus(completedStatus);
@@ -680,4 +695,87 @@ public class RequestController {
 
         return "redirect:/requests/" + id + "?success=closed";
     }
+
+    @PostMapping("/{id}/work/add")
+    public String addWork(@PathVariable Integer id,
+                          @RequestParam String description,
+                          @RequestParam Double hoursSpent,
+                          @AuthenticationPrincipal UserDetails userDetails) {
+
+        Request request = requestRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+        User worker = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        RequestWork work = new RequestWork();
+        work.setRequest(request);
+        work.setWorker(worker);
+        work.setDescription(description);
+        work.setHoursSpent(hoursSpent);
+        requestWorkRepository.save(work);
+
+        return "redirect:/requests/" + id;
+    }
+    @PostMapping("/{id}/material/actual/add")
+    public String addActualMaterial(@PathVariable Integer id,
+                                    @RequestParam Integer materialId,
+                                    @RequestParam Integer quantity,
+                                    @AuthenticationPrincipal UserDetails userDetails) {
+
+        Request request = requestRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Заявка не найдена"));
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        Material material = materialRepository.findById(materialId)
+                .orElseThrow(() -> new RuntimeException("Материал не найден"));
+
+        // Проверка остатка на складе
+        if (material.getQuantity() < quantity) {
+            return "redirect:/requests/" + id + "?error=notEnoughMaterial";
+        }
+
+        // Списание со склада
+        material.setQuantity(material.getQuantity() - quantity);
+        materialRepository.save(material);
+
+        // Сохранение в историю фактических материалов
+        RequestMaterialActual actual = new RequestMaterialActual();
+        actual.setRequest(request);
+        actual.setMaterial(material);
+        actual.setQuantity(quantity);
+        actual.setAddedBy(user);
+        requestMaterialActualRepository.save(actual);
+
+        return "redirect:/requests/" + id;
+    }
+    @GetMapping("/{id}/material/actual/delete/{actualId}")
+    public String deleteActualMaterial(@PathVariable Integer id,
+                                       @PathVariable Long actualId,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+
+        RequestMaterialActual actual = requestMaterialActualRepository.findById(actualId)
+                .orElseThrow(() -> new RuntimeException("Запись не найдена"));
+
+        User currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+
+        // Только ADMIN и DISPATCHER могут удалять
+        boolean canDelete = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN") || r.getName().equals("DISPATCHER"));
+
+        if (!canDelete) {
+            return "redirect:/requests/" + id + "?error=accessDenied";
+        }
+
+        // Возвращаем материал на склад
+        Material material = actual.getMaterial();
+        material.setQuantity(material.getQuantity() + actual.getQuantity());
+        materialRepository.save(material);
+
+        requestMaterialActualRepository.delete(actual);
+
+        return "redirect:/requests/" + id;
+    }
+
+
 }

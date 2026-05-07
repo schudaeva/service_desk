@@ -37,8 +37,13 @@ public class SecurityConfig {
                         .requestMatchers("/materials/**").hasAnyRole("ADMIN", "DISPATCHER")
 
                         // Заявки
-                        .requestMatchers("/requests/create").hasAnyRole("ADMIN", "DISPATCHER", "REQUESTER", "WORKER")
+                        .requestMatchers("/requests/create").hasAnyRole("ADMIN", "DISPATCHER", "REQUESTER",
+                                "WORKER")
                         .requestMatchers("/requests/**").authenticated()
+
+                        .requestMatchers("/admin/dictionaries/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+
 
                         // Остальное — только для авторизованных
                         .anyRequest().authenticated()

@@ -35,6 +35,9 @@
         <li sec:authorize="hasRole('ADMIN')" class="nav-item">
           <a class="nav-link" href="/users">Пользователи</a>
         </li>
+        <li sec:authorize="hasRole('ADMIN')">
+          <a class="nav-link" href="/admin/dictionaries">Справочники</a>
+        </li>
         <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
           <a class="nav-link" href="/reports">Отчёты</a>
         </li>
@@ -147,30 +150,115 @@
       <div class="border p-3 bg-light rounded" th:text="${request.description}">Описание отсутствует</div>
     </div>
   </div>
+  <div sec:authorize="hasAnyRole('ADMIN', 'WORKER')" class="card shadow mt-4">
+    <div class="card-header bg-secondary">
+      <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Выполненные работы</h5>
+    </div>
+    <div class="card-body">
+      <!-- Форма добавления работы -->
+      <form th:action="@{/requests/{id}/work/add(id=${request.requestId})}" method="post" class="row g-2 mb-3">
+        <div class="col-md-6">
+          <input type="text" name="description" class="form-control" placeholder="Описание выполненной работы" required>
+        </div>
+        <div class="col-md-3">
+          <input type="number" name="hoursSpent" class="form-control" placeholder="Часы" step="0.5" min="0.5" required>
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-success w-100">
+            <i class="fas fa-plus me-1"></i>Добавить работу
+          </button>
+        </div>
+      </form>
 
-  <!-- Материалы заявки (только для ADMIN, DISPATCHER, WORKER) -->
+
+      <hr>
+
+      <!-- Список работ -->
+      <div th:if="${works == null or works.isEmpty()}" class="text-muted text-center py-3">
+        <i class="fas fa-clipboard-list me-1"></i>Работы ещё не добавлены
+      </div>
+      <div th:if="${works != null and not works.isEmpty()}">
+        <table class="table table-sm">
+          <thead class="table-light">
+          <tr><th>Описание</th><th>Часы</th><th>Исполнитель</th><th>Дата</th> </thead>
+          <tbody>
+          <tr th:each="w : ${works}">
+            <td th:text="${w.description}">-</td>
+            <td th:text="${w.hoursSpent}">-</td>
+            <td th:text="${w.worker.username}">-</td>
+            <td th:text="${#temporals.format(w.createdAt, 'dd.MM.yyyy HH:mm')}">-</td>
+          </tr>
+          </tbody>
+          <tfoot>
+          <tr class="table-active">
+            <td><strong>Итого:</strong></td>
+            <td><strong th:text="${#numbers.formatDecimal(totalHours, 1, 2)}">0.00</strong> ч.</td>
+            <td colspan="2"></td>
+          </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Фактические материалы (только для ADMIN, DISPATCHER, WORKER) -->
   <div sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER', 'WORKER')" class="card shadow mt-4">
     <div class="card-header bg-secondary">
       <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Материалы</h5>
     </div>
     <div class="card-body">
-      <div th:if="${requestMaterials == null or requestMaterials.isEmpty()}" class="text-muted">
-        Материалы не привязаны
+      <!-- Форма добавления материала -->
+      <form th:action="@{/requests/{id}/material/actual/add(id=${request.requestId})}" method="post" class="row g-2 mb-3">
+        <div class="col-md-5">
+          <select name="materialId" class="form-select" required>
+            <option value="">-- Выберите материал --</option>
+            <option th:each="m : ${materials}"
+                    th:value="${m.materialId}"
+                    th:text="${m.name + ' (остаток: ' + m.quantity + ' ' + m.unit + ')'}">
+            </option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input type="number" name="quantity" class="form-control" placeholder="Количество" min="1" required>
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-plus me-1"></i>Добавить материал
+          </button>
+        </div>
+      </form>
+
+      <hr>
+
+      <!-- Список фактических материалов -->
+      <div th:if="${actualMaterials == null or actualMaterials.isEmpty()}" class="text-muted text-center py-3">
+        <i class="fas fa-box-open me-1"></i>Материалы ещё не добавлены
       </div>
-      <table th:if="${requestMaterials != null and not requestMaterials.isEmpty()}" class="table table-sm">
-        <thead>
-        <tr><th>Материал</th><th>Плановое кол-во</th><th>Ед.изм.</th></tr>
-        </thead>
-        <tbody>
-        <tr th:each="rm : ${requestMaterials}">
-          <td th:text="${rm.material.name}">-</td>
-          <td th:text="${rm.plannedQuantity}">-</td>
-          <td th:text="${rm.material.unit}">-</td>
-        </tr>
-        </tbody>
-      </table>
+      <div th:if="${actualMaterials != null and not actualMaterials.isEmpty()}">
+        <table class="table table-sm">
+          <thead class="table-light">
+          <tr><th>Материал</th><th>Количество</th><th>Добавил</th><th>Дата</th><th>Действия</th> </thead>
+          <tbody>
+          <tr th:each="am : ${actualMaterials}">
+            <td th:text="${am.material.name}">-</td>
+            <td th:text="${am.quantity}">-</td>
+            <td th:text="${am.addedBy.username}">-</td>
+            <td th:text="${#temporals.format(am.createdAt, 'dd.MM.yyyy HH:mm')}">-</td>
+            <td>
+              <a sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')"
+                 th:href="@{/requests/{id}/material/actual/delete/{actualId}(id=${request.requestId}, actualId=${am.id})}"
+                 class="btn btn-sm btn-danger" onclick="return confirm('Удалить материал и вернуть на склад?')">
+                <i class="fas fa-trash"></i>
+              </a>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
+
+
 
   <!-- Изменение статуса (только для ADMIN, DISPATCHER, WORKER) -->
   <div sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER', 'WORKER')" class="card shadow mb-4 mt-4">
@@ -201,35 +289,35 @@
     </div>
   </div>
 
-  <!-- Завершить заявку (только для ADMIN, DISPATCHER, WORKER) -->
-  <div sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER', 'WORKER')" class="card shadow mt-4">
-    <div class="card-header bg-success">
-      <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Завершить заявку</h5>
-    </div>
-    <div class="card-body">
-      <form th:action="@{/requests/{id}/close(id=${request.requestId})}" method="post">
-        <div th:if="${requestMaterials != null and not requestMaterials.isEmpty()}">
-          <h6>Укажите фактический расход материалов:</h6>
-          <div th:each="rm, iterStat : ${requestMaterials}" class="row mb-2">
-            <div class="col-md-4">
-              <span th:text="${rm.material.name}"></span>
-              <span class="text-muted">(план: <span th:text="${rm.plannedQuantity}"></span> <span th:text="${rm.material.unit}"></span>)</span>
-            </div>
-            <div class="col-md-3">
-              <input type="number" name="actualQuantities" class="form-control"
-                     th:value="${rm.plannedQuantity}" min="0" step="1">
-            </div>
-          </div>
-        </div>
-        <div th:if="${requestMaterials == null or requestMaterials.isEmpty()}">
-          <p class="text-muted">Нет привязанных материалов</p>
-        </div>
-        <button type="submit" class="btn btn-success mt-2" onclick="return confirm('Завершить заявку и списать материалы?')">
-          <i class="fas fa-check-circle me-1"></i>Завершить заявку
-        </button>
-      </form>
-    </div>
-  </div>
+<!--  &lt;!&ndash; Завершить заявку (только для ADMIN, DISPATCHER, WORKER) &ndash;&gt;-->
+<!--  <div sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER', 'WORKER')" class="card shadow mt-4">-->
+<!--    <div class="card-header bg-success">-->
+<!--      <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Завершить заявку</h5>-->
+<!--    </div>-->
+<!--    <div class="card-body">-->
+<!--      <form th:action="@{/requests/{id}/close(id=${request.requestId})}" method="post">-->
+<!--        <div th:if="${requestMaterials != null and not requestMaterials.isEmpty()}">-->
+<!--          <h6>Укажите фактический расход материалов:</h6>-->
+<!--          <div th:each="rm, iterStat : ${requestMaterials}" class="row mb-2">-->
+<!--            <div class="col-md-4">-->
+<!--              <span th:text="${rm.material.name}"></span>-->
+<!--              <span class="text-muted">(план: <span th:text="${rm.plannedQuantity}"></span> <span th:text="${rm.material.unit}"></span>)</span>-->
+<!--            </div>-->
+<!--            <div class="col-md-3">-->
+<!--              <input type="number" name="actualQuantities" class="form-control"-->
+<!--                     th:value="${rm.plannedQuantity}" min="0" step="1">-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--        <div th:if="${requestMaterials == null or requestMaterials.isEmpty()}">-->
+<!--          <p class="text-muted">Нет привязанных материалов</p>-->
+<!--        </div>-->
+<!--        <button type="submit" class="btn btn-success mt-2" onclick="return confirm('Завершить заявку и списать материалы?')">-->
+<!--          <i class="fas fa-check-circle me-1"></i>Завершить заявку-->
+<!--        </button>-->
+<!--      </form>-->
+<!--    </div>-->
+<!--  </div>-->
 
   <!-- Комментарии (видны всем) -->
   <div class="card shadow mt-4">

@@ -2,13 +2,11 @@ package com.example.vkr.controller;
 
 import com.example.vkr.dto.RequestResponseDto;
 import com.example.vkr.entity.Equipment;
-import com.example.vkr.entity.EquipmentType;
 import com.example.vkr.entity.Request;
 import com.example.vkr.repository.EquipmentRepository;
 import com.example.vkr.repository.EquipmentTypeRepository;
 import com.example.vkr.repository.RequestRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;

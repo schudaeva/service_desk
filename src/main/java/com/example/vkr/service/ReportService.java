@@ -2,8 +2,10 @@ package com.example.vkr.service;
 
 import com.example.vkr.dto.ReportDto;
 import com.example.vkr.entity.Request;
+import com.example.vkr.entity.RequestWork;
 import com.example.vkr.entity.User;
 import com.example.vkr.repository.RequestRepository;
+import com.example.vkr.repository.RequestWorkRepository;
 import com.example.vkr.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -22,6 +24,7 @@ public class ReportService {
 
     private final RequestRepository requestRepository;
     private final UserRepository userRepository;
+    private final RequestWorkRepository requestWorkRepository;
 
     /**
      * Сбор статистики для отчёта
@@ -83,6 +86,22 @@ public class ReportService {
             workerLoad.put(worker.getUsername() != null ? worker.getUsername() : "Unknown", count);
         }
         report.setWorkerLoad(workerLoad);
+
+        // Загрузка исполнителей по месяцам (из таблицы request_work)
+        Map<String, Map<String, Double>> workerMonthlyHours = new LinkedHashMap<>();
+
+        List<RequestWork> allWorks = requestWorkRepository.findAll();
+
+        for (RequestWork work : allWorks) {
+            String workerName = work.getWorker().getUsername();
+            String month = work.getCreatedAt().format(DateTimeFormatter.ofPattern("MMM yyyy"));
+            Double hours = work.getHoursSpent();
+
+            workerMonthlyHours.computeIfAbsent(workerName, k -> new LinkedHashMap<>())
+                    .merge(month, hours, Double::sum);
+        }
+
+        report.setWorkerMonthlyHours(workerMonthlyHours);
 
         return report;
     }
@@ -170,12 +189,38 @@ public class ReportService {
                 row.createCell(1).setCellValue(entry.getValue());
             }
 
+            // Лист 5: Загрузка исполнителей по месяцам
+            Sheet monthWorkSheet = workbook.createSheet("Загрузка по месяцам");
+            rowNum = 0;
+            headerRow = monthWorkSheet.createRow(rowNum++);
+            headerCell = headerRow.createCell(0);
+            headerCell.setCellValue("Исполнитель");
+            headerCell.setCellStyle(headerStyle);
+            headerCell = headerRow.createCell(1);
+            headerCell.setCellValue("Месяц");
+            headerCell.setCellStyle(headerStyle);
+            headerCell = headerRow.createCell(2);
+            headerCell.setCellValue("Часы");
+            headerCell.setCellStyle(headerStyle);
+
+            for (Map.Entry<String, Map<String, Double>> workerEntry : report.getWorkerMonthlyHours().entrySet()) {
+                String workerName = workerEntry.getKey();
+                for (Map.Entry<String, Double> monthEntry : workerEntry.getValue().entrySet()) {
+                    Row row = monthWorkSheet.createRow(rowNum++);
+                    row.createCell(0).setCellValue(workerName);
+                    row.createCell(1).setCellValue(monthEntry.getKey());
+                    row.createCell(2).setCellValue(monthEntry.getValue());
+                }
+            }
+            for (int i = 0; i < 3; i++) monthWorkSheet.autoSizeColumn(i);
+
             // Авто-подбор ширины колонок
             for (int i = 0; i < 4; i++) {
                 summarySheet.autoSizeColumn(i);
                 statusSheet.autoSizeColumn(i);
                 monthSheet.autoSizeColumn(i);
                 workerSheet.autoSizeColumn(i);
+                monthWorkSheet.autoSizeColumn(i);
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

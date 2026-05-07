@@ -15,4 +15,5 @@ public class RequestCreateDto {
     private Integer assignedToId;
     private List<Integer> materialIds = new ArrayList<>();
     private List<Integer> plannedQuantities = new ArrayList<>();
+    private String formattedDeadline;  
 }

@@ -21,5 +21,7 @@ public class ReportDto {
     // Загрузка исполнителей
     private Map<String, Long> workerLoad;
 
+    private Map<String, Map<String, Double>> workerMonthlyHours;  // сотрудник → месяц → часы
+
     private LocalDateTime generatedAt;
 }

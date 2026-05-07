@@ -6,7 +6,7 @@ body{
 }
 /* 1. Навигационная панель (Navbar) */
 body .navbar.navbar-dark.bg-dark {
-    background: linear-gradient(135deg, #461965 0%, #8032be 100%) !important;
+    background-color: #461965 !important;
 }
 
 /* Бренд */
@@ -43,8 +43,8 @@ body .navbar-dark .navbar-nav .nav-link.active {
     color: #e2e8f0 !important;
 }
 .btn-outline-light:hover {
-    background-color: #8032be !important;
-    border-color: #542279 !important;
+    background-color: #d091ff !important;
+    border-color: #d091ff !important;
     color: #ffffff !important;
 }
 
@@ -52,12 +52,12 @@ body .navbar-dark .navbar-nav .nav-link.active {
 .btn-primary,
 .btn-primary:focus,
 .btn-primary:active {
-    background-color: #461965 !important;
+    background-color: #8032be !important;
     border: none !important;
     color: white !important;
 }
 .btn-primary:hover {
-    background-color: #8032be !important;
+    background-color: #d091ff !important;
     transform: translateY(-1px) !important;
 }
 
@@ -113,7 +113,7 @@ body .table-hover {
 body .table thead th,
 body .table-striped thead th,
 body .table-hover thead th {
-    background-color: #461965 !important;
+    background-color: #8032be !important;
     color: #ffffff !important;
     border-bottom: 2px solid #334155 !important;
     padding: 12px 16px !important;
@@ -193,7 +193,6 @@ footer.footer {
 }
 
 .stats-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-radius: 12px;
     padding: 20px;
@@ -206,4 +205,29 @@ footer.footer {
 .stats-card h2 {
     margin: 0;
     font-size: 32px;
+}
+
+table.table tbody tr.overdue-row,
+table.table-striped tbody tr.overdue-row,
+table.table-hover tbody tr.overdue-row {
+    background-color: #ffe6e6 !important;
+}
+
+table.table tbody tr.warning-row,
+table.table-striped tbody tr.warning-row,
+table.table-hover tbody tr.warning-row {
+    background-color: #fff3cd !important;
+}
+
+/* Также перебиваем при наведении */
+table.table tbody tr.overdue-row:hover,
+table.table-striped tbody tr.overdue-row:hover,
+table.table-hover tbody tr.overdue-row:hover {
+    background-color: #ffe6e6 !important;
+}
+
+table.table tbody tr.warning-row:hover,
+table.table-striped tbody tr.warning-row:hover,
+table.table-hover tbody tr.warning-row:hover {
+    background-color: #fff3cd !important;
 }

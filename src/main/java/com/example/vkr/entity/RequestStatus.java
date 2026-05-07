@@ -34,6 +34,9 @@ public class RequestStatus {
     @Column(name = "color", length = 7)
     private String color = "#888888";
 
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
     @OneToMany(mappedBy = "status")
     private Set<Request> requests = new HashSet<>();
 

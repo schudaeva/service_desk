@@ -35,6 +35,9 @@
                 <li sec:authorize="hasRole('ADMIN')" class="nav-item">
                     <a class="nav-link" href="/users">Пользователи</a>
                 </li>
+                <li sec:authorize="hasRole('ADMIN')">
+                    <a class="nav-link" href="/admin/dictionaries">Справочники</a>
+                </li>
                 <li sec:authorize="hasAnyRole('ADMIN', 'DISPATCHER')">
                     <a class="nav-link" href="/reports">Отчёты</a>
                 </li>
@@ -126,17 +129,26 @@
                     <label class="form-label">Дедлайн по</label>
                     <input type="datetime-local" name="deadlineTo" class="form-control" th:value="${selectedDeadlineTo}">
                 </div>
-                <div class="col-md-12">
-                    <button type="submit" class="btn btn-primary">Применить</button>
-                    <a href="/requests" class="btn btn-secondary">Сбросить</a>
+                <div class="col-md-12 d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="submit" class="btn btn-primary">Применить</button>
+                        <a href="/requests" class="btn btn-secondary">Сбросить</a>
+                    </div>
+                    <div>
+                        <a href="/requests?filter=overdue" class="btn btn-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Просроченные заявки
+                        </a>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
-
+    <div th:if="${filterApplied != null}" class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i> <span th:text="${filterApplied}"></span>
+    </div>
     <!-- ТАБЛИЦА ЗАЯВОК -->
     <div class="table-responsive">
-        <table class="table table-striped table-hover">
+        <table class="table table-hover table-striped">
             <thead class="table-dark">
             <tr>
                 <th>
@@ -170,7 +182,9 @@
                     Заявок не найдено. Попробуйте изменить параметры фильтра.
                 </td>
             </tr>
-            <tr th:each="r : ${requests}" th:style="${r.rowCssClass}">
+            <tr th:each="r : ${requests}"
+                th:classappend="${r.deadline != null and r.deadline.isBefore(#temporals.createNow())} ? 'overdue-row' :
+                       (${r.deadline != null and r.deadline.isBefore(#temporals.createNow().plusHours(24))} ? 'warning-row' : '')">
                 <td th:text="${r.requestId}">-</td>
                 <td th:text="${r.title}">-</td>
                 <td th:text="${r.equipmentName != null ? r.equipmentName : '-'}">-</td>

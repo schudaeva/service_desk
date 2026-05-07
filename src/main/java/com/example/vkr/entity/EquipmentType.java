@@ -25,6 +25,11 @@ public class EquipmentType {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
     @OneToMany(mappedBy = "type")
     private Set<Equipment> equipmentSet = new HashSet<>();
+
+
 }

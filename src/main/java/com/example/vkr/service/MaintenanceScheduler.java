@@ -4,6 +4,7 @@ import com.example.vkr.entity.Equipment;
 import com.example.vkr.entity.MaintenanceNotification;
 import com.example.vkr.repository.EquipmentRepository;
 import com.example.vkr.repository.MaintenanceNotificationRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,9 +23,12 @@ public class MaintenanceScheduler {
     private final EquipmentRepository equipmentRepository;
     private final MaintenanceNotificationRepository notificationRepository;
 
-    /**
-     * Запускается каждый день в 8:00 утра
-     */
+
+    @PostConstruct
+    public void init() {
+        runMaintenanceCheck();
+    }
+
     @Scheduled(cron = "0 0 8 * * *")
     @Transactional
     public void checkPlannedMaintenances() {
@@ -45,6 +49,10 @@ public class MaintenanceScheduler {
         }
 
         log.info("Планировщик завершил работу");
+    }
+
+    public void runMaintenanceCheck() {
+        checkPlannedMaintenances();
     }
 
     private void processEquipment(Equipment equipment, LocalDate today, int daysBefore) {
